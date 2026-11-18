@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FRAMEVAULT 帧仓 · 文件 ↔ 视频 确定性编解码工作台</title>
+<style>
+:root{
+  --ink:#05070d;--panel:#0b111c;--panel2:#0e1728;--line:#1d2c45;--line2:#2a3d5e;
+  --tx:#eaf2ff;--dim:#8296b8;--cyan:#22d3ee;--blue:#3d7bff;--magenta:#ff4fa3;
+  --amber:#ffb224;--acid:#9dff3f;--red:#ff5470;--violet:#8b5cf6;
+  --grad:linear-gradient(100deg,var(--blue),var(--cyan) 55%,var(--magenta));
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--tx);font:14px/1.65 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--ink)}
+::-webkit-scrollbar-thumb{background:linear-gradient(var(--blue),var(--cyan));border-radius:99px;border:2px solid var(--ink)}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(var(--magenta),var(--amber))}
+*{scrollbar-width:thin;scrollbar-color:var(--blue) var(--ink)}
+.bg{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(900px 520px at 12% -8%,rgba(61,123,255,.22),transparent 60%),
+  radial-gradient(800px 560px at 96% 12%,rgba(255,79,163,.13),transparent 60%),
+  radial-gradient(700px 700px at 55% 110%,rgba(34,211,238,.12),transparent 60%),var(--ink)}
+.bg::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(61,123,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(61,123,255,.05) 1px,transparent 1px);background-size:44px 44px;animation:drift 26s linear infinite}
+@keyframes drift{to{background-position:44px 44px}}
+.scan{position:fixed;inset:0;z-index:-1;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.016) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+.top{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(5,7,13,.82);border-bottom:1px solid var(--line)}
+.topin{max-width:1360px;margin:0 auto;padding:14px 20px 0;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.logo{display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;flex:none;filter:drop-shadow(0 0 10px rgba(34,211,238,.5))}
+h1{font:800 21px/1 ui-monospace,"SF Mono",Consolas,monospace;letter-spacing:.14em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{font-size:12px;color:var(--dim);margin-top:3px}
+.chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:11px/1 ui-monospace,Consolas,monospace;padding:6px 11px;border-radius:99px;border:1px solid var(--line2);color:var(--dim);background:var(--panel)}
+.chip.ok{color:var(--acid);border-color:rgba(157,255,63,.4)}
+.chip.warn{color:var(--amber);border-color:rgba(255,178,36,.4)}
+.tabs{max-width:1360px;margin:10px auto 0;padding:0 20px;display:flex;gap:6px}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:9px 16px;font-size:14px;cursor:pointer;transition:.18s}
+.tabs button:hover{color:var(--tx)}
+.tabs button.on{color:var(--cyan);border-color:var(--cyan);text-shadow:0 0 14px rgba(34,211,238,.6)}
+main{max-width:1360px;margin:0 auto;padding:20px;display:grid;grid-template-columns:322px minmax(0,1fr);gap:18px;align-items:start}
+main.solo{grid-template-columns:1fr}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.35);animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.card+.card{margin-top:16px}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.rail{position:sticky;top:96px}
+.rail h2,.card h2{font-size:13px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;font-family:ui-monospace,Consolas,monospace;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.rail h2::before,.card h2::before{content:"";width:8px;height:8px;background:var(--grad);border-radius:2px;box-shadow:0 0 10px var(--cyan)}
+.ctl{margin-bottom:11px}
+.ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:4px}
+.ctl label b{color:var(--cyan);font-family:ui-monospace,Consolas,monospace;font-weight:600}
+select,input[type=number]{width:100%;background:#080d17;border:1px solid var(--line2);color:var(--tx);border-radius:9px;padding:8px 10px;font-size:13px;transition:.15s;appearance:auto}
+select:hover,input:hover{border-color:var(--blue)}
+select:focus,input:focus{outline:2px solid rgba(34,211,238,.5);outline-offset:1px}
+select:disabled,input:disabled{opacity:.4}
+.tgl{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--tx);cursor:pointer;padding:5px 0}
+.tgl input{accent-color:var(--cyan);width:16px;height:16px}
+.presets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0 8px}
+.pbtn{background:#080d17;border:1px solid var(--line2);color:var(--dim);border-radius:9px;padding:7px 4px;font-size:12px;cursor:pointer;transition:.15s}
+.pbtn:hover{color:var(--tx);border-color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,.25);transform:translateY(-1px)}
+.btn{background:var(--grad);border:0;color:#fff;padding:12px 26px;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.04em;transition:.16s;box-shadow:0 6px 22px rgba(61,123,255,.35)}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,79,163,.4)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.ghost{background:#080d17;border:1px solid var(--line2);color:var(--tx);box-shadow:none;font-weight:500}
+.btn.ghost:hover{border-color:var(--magenta)}
+.btn.sm{padding:8px 16px;font-size:13px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.drop{border:2px dashed var(--line2);border-radius:14px;padding:30px 20px;text-align:center;color:var(--dim);cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.drop::before{content:"";position:absolute;inset:0;background:radial-gradient(400px 120px at 50% 0,rgba(34,211,238,.08),transparent);opacity:0;transition:.2s}
+.drop:hover,.drop.over{border-color:var(--cyan);color:var(--tx);box-shadow:0 0 0 4px rgba(34,211,238,.08),0 0 30px rgba(34,211,238,.15) inset}
+.drop:hover::before,.drop.over::before{opacity:1}
+.drop .ic{font-size:30px;display:block;margin-bottom:6px;filter:drop-shadow(0 0 12px rgba(34,211,238,.6))}
+.drop b{color:var(--cyan)}
+.fname{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--amber);margin-top:6px;word-break:break-all}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.stat{background:#080d17;border:1px solid var(--line);border-radius:11px;padding:10px 12px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--grad)}
+.stat .k{font-size:11px;color:var(--dim)}
+.stat .v{font-size:16px;font-family:ui-monospace,Consolas,monospace;margin-top:2px;color:var(--tx)}
+.note{margin-top:12px;font-size:13px;padding:11px 14px;border-radius:10px;background:#080d17;border:1px solid var(--line);color:var(--dim)}
+.note.ok{border-color:rgba(157,255,63,.45);color:var(--acid)}
+.note.warn{border-color:rgba(255,178,36,.45);color:var(--amber)}
+.note.err{border-color:rgba(255,84,112,.5);color:var(--red)}
+.bar{height:10px;background:#080d17;border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;width:0;background:var(--grad);background-size:200% 100%;animation:shim 1.6s linear infinite;transition:width .25s;box-shadow:0 0 14px rgba(34,211,238,.7)}
+@keyframes shim{to{background-position:-200% 0}}
+.log{background:#04060b;border:1px solid var(--line);border-radius:11px;padding:10px 12px;height:158px;overflow:auto;font:12px/1.75 ui-monospace,Consolas,monospace;color:#93a7c9;margin-top:12px;white-space:pre-wrap}
+.log .t{color:var(--blue)}
+canvas.preview,video.preview{width:100%;border-radius:12px;border:1px solid var(--line2);background:#000;display:block}
+canvas.preview{image-rendering:pixelated}
+video.preview{max-height:360px;margin-top:12px}
+.probe{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pane{position:relative}
+.pane .cap{position:absolute;top:8px;left:8px;font:10px/1 ui-monospace,Consolas,monospace;letter-spacing:.12em;padding:5px 8px;border-radius:6px;background:rgba(5,7,13,.8);border:1px solid var(--line2);color:var(--cyan);z-index:2}
+.pane.after .cap{color:var(--magenta)}
+.meter{margin-top:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.mnum{font:800 34px/1 ui-monospace,Consolas,monospace;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mgauge{flex:1;min-width:180px;height:14px;border-radius:99px;background:linear-gradient(90deg,var(--acid) 0 30%,var(--amber) 30% 62%,var(--red) 62% 100%);position:relative;opacity:.9;border:1px solid var(--line2)}
+.mgauge .pin{position:absolute;top:-5px;bottom:-5px;width:4px;border-radius:4px;background:#fff;box-shadow:0 0 10px #fff;left:0;transition:left .4s cubic-bezier(.2,.8,.2,1)}
+.verdict{font:700 12px/1 ui-monospace,Consolas,monospace;padding:8px 14px;border-radius:99px;letter-spacing:.1em}
+.verdict.ok{background:rgba(157,255,63,.12);color:var(--acid);border:1px solid rgba(157,255,63,.5)}
+.verdict.warn{background:rgba(255,178,36,.12);color:var(--amber);border:1px solid rgba(255,178,36,.5)}
+.verdict.err{background:rgba(255,84,112,.12);color:var(--red);border:1px solid rgba(255,84,112,.5)}
+.verdict.idle{background:#080d17;color:var(--dim);border:1px solid var(--line2)}
+a.dl{display:inline-block;background:var(--acid);color:#0a1403;font-weight:800;padding:12px 24px;border-radius:11px;text-decoration:none;margin-top:12px;box-shadow:0 6px 22px rgba(157,255,63,.3);transition:.15s}
+a.dl:hover{transform:translateY(-2px)}
+a.dl.part{background:var(--amber);color:#1a1000}
+.hidden{display:none!important}
+.fmap{width:100%;height:22px;border-radius:7px;border:1px solid var(--line2);margin-top:12px;image-rendering:pixelated;background:#080d17}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--dim);margin-top:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.about p{margin:9px 0;color:#c3cfe6}
+.about h3{margin:18px 0 6px;font-size:15px;color:var(--cyan)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+th{color:var(--dim);font-weight:500;background:#080d17}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.fix{border:1px solid rgba(157,255,63,.4);background:rgba(157,255,63,.06);border-radius:12px;padding:12px 14px;margin:10px 0;color:var(--acid);font-size:13px}
+@media(max-width:980px){main{grid-template-columns:1fr}.rail{position:static}.probe{grid-template-columns:1fr}.topin{padding:12px 14px 0}.tabs{padding:0 14px;overflow-x:auto}main{padding:14px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bg"></div><div class="scan"></div>
+
+<header class="top">
+  <div class="topin">
+    <div class="logo">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="2" y="2" width="36" height="36" rx="7" fill="none" stroke="#3d7bff" stroke-width="2"/>
+        <rect x="8" y="8" width="7" height="7" fill="#22d3ee"/><rect x="17" y="8" width="7" height="7" fill="#1d2c45"/>
+        <rect x="26" y="8" width="7" height="7" fill="#ff4fa3"/><rect x="8" y="17" width="7" height="7" fill="#1d2c45"/>
+        <rect x="17" y="17" width="7" height="7" fill="#9dff3f"/><rect x="26" y="17" width="7" height="7" fill="#22d3ee"/>
+        <rect x="8" y="26" width="7" height="7" fill="#ffb224"/><rect x="17" y="26" width="7" height="7" fill="#22d3ee"/>
+        <rect x="26" y="26" width="7" height="7" fill="#1d2c45"/>
+      </svg>
+      <div><h1>FRAMEVAULT</h1><div class="tag">帧仓 · 任意文件 ↔ 视频 · 确定性逐帧编码 + 回读校验 · 全程本地</div></div>
+    </div>
+    <div class="chips">
+      <span class="chip" id="engineChip">引擎检测中…</span>
+      <span class="chip" id="selftest">自检中…</span>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="on" data-t="enc">📼 编码工作台</button>
+    <button data-t="dec">🔓 解码还原</button>
+    <button data-t="about">📖 原理与限制</button>
+  </nav>
+</header>
+
+<main id="main">
+  <!-- ============ 永久控制轨 ============ -->
+  <aside class="rail card" id="rail">
+    <h2>信号参数 · 实时生效</h2>
+    <div class="presets">
+      <button class="pbtn" data-preset="safe">🛡 稳健</button>
+      <button class="pbtn" data-preset="bal">⚖ 均衡</button>
+      <button class="pbtn" data-preset="dense">⚡ 高密</button>
+    </div>
+    <div class="ctl"><label>清晰度 <b id="vRes">1080p</b></label>
+      <select id="res"><option value="1280x720">720p · 1280×720</option><option value="1920x1080" selected>1080p · 1920×1080</option><option value="2560x1440">1440p · 2560×1440</option><option value="3840x2160">4K · 3840×2160</option></select></div>
+    <div class="ctl"><label>帧率 <b id="vFps">30 fps</b></label>
+      <select id="fps"><option>15</option><option>24</option><option selected>30</option><option>60</option></select></div>
+    <div class="ctl"><label>像素密度模式</label>
+      <select id="mode"><option value="bin">稳健 · 黑白 1bit/块</option><option value="g4">均衡 · 4级灰度 2bit/块</option><option value="g16" selected>高密 · 16级灰度 4bit/块</option><option value="rgb">⚠ 极限 · RGB 24bit/像素</option></select></div>
+    <div class="ctl"><label>容错率（RS 纠错冗余）<b id="vEcc">25%</b></label>
+      <select id="ecc"><option value="low">低 · 10%</option><option value="mid" selected>中 · 25%</option><option value="high">高 · 40%</option><option value="max">极高 · 60%</option></select></div>
+    <div class="ctl"><label>像素块大小 <b id="vBs">8 px</b></label>
+      <select id="bs"><option>4</option><option selected>8</option><option>12</option><option>16</option></select></div>
+    <div class="ctl"><label>每帧重复（时间冗余）<b id="vRep">1×</b></label>
+      <select id="rep"><option selected>1</option><option>2</option><option>3</option></select></div>
+    <div class="ctl"><label>关键帧间隔 <b id="vKf">15 帧</b></label>
+      <select id="kf"><option value="1">1 · 每帧关键帧</option><option value="15" selected>15</option><option value="30">30</option><option value="60">60</option></select></div>
+    <div class="ctl"><label>码率模式</label>
+      <select id="brMode"><option value="constant" selected>恒定码率（推荐）</option><option value="variable">可变码率</option></select></div>
+    <div class="ctl"><label>视频码率 <b id="vBr">12 Mbps</b></label>
+      <input type="number" id="br" min="0.5" max="200" step="0.5" value="12">
+      <label class="tgl"><input type="checkbox" id="autoBr" checked><span>自动码率</span></label></div>
+    <label class="tgl"><input type="checkbox" id="comp" checked><span>先 Deflate 压缩（强烈建议）</span></label>
+    <label class="tgl"><input type="checkbox" id="verify" checked><span>编码后自动逐帧回读校验</span></label>
+    <div class="row" style="margin-top:12px">
+      <button class="btn ghost sm" id="resetBtn">重置参数</button>
+      <button class="btn ghost sm" id="probeBtn">📡 信道测试</button>
+    </div>
+    <div class="note warn hidden" id="rgbWarn" style="font-size:12px">⚠ 极限模式每像素塞满 24bit。浏览器编码是有损的，此模式大概率无法还原，仅供无损管道实验。</div>
+  </aside>
+
+  <!-- ============ 编码 ============ -->
+  <section id="tab-enc">
+    <div class="card">
+      <div class="drop" id="encDrop"><span class="ic">📦</span>把<b>任意文件</b>拖到这里，或点击选择<br><span class="fname" id="encFileName">尚未选择文件</span></div>
+      <input type="file" id="encFile" class="hidden">
+    </div>
+
+    <div class="card">
+      <h2>信道体检 · 当前参数实测</h2>
+      <div class="probe">
+        <div class="pane"><span class="cap">SOURCE · 原始数据帧</span><canvas class="preview" id="probeSrc" width="1920" height="1080"></canvas></div>
+        <div class="pane after"><span class="cap">CHANNEL · 编码→解码后</span><canvas class="preview" id="probeDst" width="1920" height="1080"></canvas></div>
+      </div>
+      <div class="meter">
+        <div><div class="mnum" id="mNum">—</div><div style="font-size:11px;color:var(--dim)">信道字节错误率（纠错前）</div></div>
+        <div class="mgauge"><div class="pin" id="mPin"></div></div>
+        <span class="verdict idle" id="mVerdict">待测试</span>
+      </div>
+      <div class="note" id="probeNote">调整左侧参数后自动实测：把一帧随机数据真实编码再解码，测量错误率并对照纠错容量，提前告诉你“能不能解回来”。</div>
+    </div>
+
+    <div class="card">
+      <h2>容量与体积预估</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">原文件</div><div class="v" id="stOrig">—</div></div>
+        <div class="stat"><div class="k">压缩后载荷</div><div class="v" id="stComp">—</div></div>
+        <div class="stat"><div class="k">每帧净容量</div><div class="v" id="stCap">—</div></div>
+        <div class="stat"><div class="k">数据帧数</div><div class="v" id="stFrames">—</div></div>
+        <div class="stat"><div class="k">视频时长</div><div class="v" id="stDur">—</div></div>
+        <div class="stat"><div class="k">预计视频大小</div><div class="v" id="stEst">—</div></div>
+      </div>
+      <div class="note" id="stNote">选择文件后显示“视频是否会更小”的预估。</div>
+    </div>
+
+    <div class="card">
+      <h2>编码 · 确定性逐帧写入</h2>
+      <div class="row">
+        <button class="btn" id="encStart" disabled>▶ 开始编码</button>
+        <button class="btn ghost hidden" id="encCancel">取消</button>
+        <button class="btn ghost hidden" id="hardenBtn">🛡 一键加固重编</button>
+        <span class="mono" id="encPct" style="color:var(--dim)"></span>
+      </div>
+      <div class="bar"><i id="encBar"></i></div>
+      <canvas class="preview hidden" id="encCanvas" width="1920" height="1080" style="margin-top:12px"></canvas>
+      <div class="log" id="encLog">就绪。v2 已改用 WebCodecs 逐帧确定性编码：每一逻辑帧精确写入一个视频帧，杜绝录制丢帧。</div>
+      <div id="encResult" class="hidden">
+        <video class="preview" id="encVideo" controls muted playsinline></video>
+        <div class="note" id="verifyNote"></div>
+        <div class="note" id="encSizeNote"></div>
+        <a class="dl" id="encDl" download>⬇ 下载编码视频（已校验）</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 解码 ============ -->
+  <section id="tab-dec" class="hidden">
+    <div class="card">
+      <div class="drop" id="decDrop"><span class="ic">🎞</span>把本工具生成的<b>视频</b>拖到这里，或点击选择<br><span class="fname" id="decFileName">支持 MP4（v2 确定性封装）与 WebM（兼容模式）</span></div>
+      <input type="file" id="decFile" accept="video/*,.webm,.mp4,.mkv" class="hidden">
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="decStart" disabled>▶ 开始解码</button>
+        <button class="btn ghost hidden" id="decCancel">取消</button>
+        <span class="mono" id="decPct" style="color:var(--dim)"></span>
+      </div>
+      <div class="bar"><i id="decBar"></i></div>
+      <canvas class="fmap" id="fmap" width="1200" height="22"></canvas>
+      <div class="legend"><span><i style="background:#1d2c45"></i>待处理</span><span><i style="background:var(--acid)"></i>校验通过</span><span><i style="background:var(--red)"></i>坏帧</span><span><i style="background:var(--amber)"></i>重复副本救回</span></div>
+      <div class="log" id="decLog">就绪。MP4 走解封装 + VideoDecoder 精确逐帧读取，不依赖播放器呈现，不会漏帧。</div>
+      <div id="decResult" class="hidden">
+        <div class="note" id="decInfo"></div>
+        <a class="dl hidden" id="decDl">⬇ 下载还原文件</a>
+        <a class="dl part hidden" id="decDlPart">⬇ 下载不完整数据（缺帧补零）</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 说明 ============ -->
+  <section id="tab-about" class="hidden">
+    <div class="card about">
+      <h2>原理与限制</h2>
+      <div class="fix">✅ v2 修复“下载视频帧缺失、解码不了”：编码不再依赖 MediaRecorder 的实时录制（画布稍慢就会丢帧），改为 WebCodecs VideoEncoder 逐帧确定性编码 + 自带 MP4 索引封装，帧数与时间戳精确可控；解码直接解封装读取每一个样本；默认开启“编码后自动逐帧回读校验”，下载前就确认能完整还原，失败可一键加固重编。</div>
+      <h3>工作流程</h3>
+      <p>编码：文件 → Deflate 压缩 → 按帧切块 → 每帧 CRC32 → Reed-Solomon(GF256) 纠错 → 码字交织 → 像素块映射 → VideoEncoder 逐帧编码（VP9/H.264，恒定码率）→ MP4 封装（完整样本表）。兼容模式（无 WebCodecs 时）退回 MediaRecorder 并自动加倍帧冗余。</p>
+      <p>解码：MP4 解封装 → VideoDecoder 逐样本解码 → 像素块采样（用帧头黑白参考自动校准亮度范围）→ 低置信度标记擦除 → RS 纠错 → 帧 CRC → 按帧号拼回 → 整体 CRC → 解压还原。重复帧去重，坏帧可用副本救回。</p>
+      <h3>密度与稳健性</h3>
+      <table>
+        <tr><th>模式</th><th>密度</th><th>1080p 每帧净载荷(约)</th><th>抗有损压缩</th></tr>
+        <tr><td>黑白 1bit/块</td><td>1 bit / 8×8 像素</td><td>~3.4 KB</td><td>★★★★★</td></tr>
+        <tr><td>4级灰度</td><td>2 bit / 块</td><td>~6.8 KB</td><td>★★★★</td></tr>
+        <tr><td>16级灰度</td><td>4 bit / 块</td><td>~13.6 KB</td><td>★★★（看信道体检）</td></tr>
+        <tr><td>极限 RGB</td><td>24 bit / 像素</td><td>~6.1 MB</td><td>★ 有损编码下基本不可解码</td></tr>
+      </table>
+      <h3>为什么“视频更小”是有条件的</h3>
+      <p>视频 = 载荷 + 纠错冗余 + 封装开销。文本/代码/日志/数据库等可压缩文件，先压缩再编码，视频可以远小于原文件；zip/jpg/mp4 等已压缩数据，信息论下限决定任何编码都不可能更小，界面会如实显示预估。想更小：提高密度、降低码率/容错/重复——但以信道体检仍为“可靠”为前提。</p>
+      <h3>推荐组合</h3>
+      <p>重要文件：稳健预设（4级灰度 + 高容错 + 重复2）。文本求最小体积：高密预设 + 信道体检显示“可靠”。4K/60fps 编码较慢属正常；所有计算均在本地完成，文件不会离开设备。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+'use strict';
+(()=>{
+/* ================= 基础 ================= */
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const te=new TextEncoder(),td=new TextDecoder();
+const fmtBytes=n=>{if(n<1024)return n+' B';const u=['KB','MB','GB'];let i=-1;do{n/=1024;i++}while(n>=1024&&i<2);return n.toFixed(n>=100?0:n>=10?1:2)+' '+u[i];};
+const fmtDur=s=>s<60?s.toFixed(1)+' 秒':Math.floor(s/60)+' 分 '+Math.round(s%60)+' 秒';
+function concatBytes(arr){let n=0;for(const a of arr)n+=a.length;const o=new Uint8Array(n);let p=0;for(const a of arr){o.set(a,p);p+=a.length;}return o;}
+const u32=v=>new Uint8Array([(v>>>24)&255,(v>>>16)&255,(v>>>8)&255,v&255]);
+const u16=v=>new Uint8Array([(v>>8)&255,v&255]);
+const readU32be=(b,o)=>((b[o]<<24)|(b[o+1]<<16)|(b[o+2]<<8)|b[o+3])>>>0;
+function log(el,msg){el.textContent+=`\n[${new Date().toTimeString().slice(0,8)}] ${msg}`;el.scrollTop=el.scrollHeight;}
+const CRC_T=new Uint32Array(256);
+for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);CRC_T[i]=c>>>0;}
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function crc16(b){let c=0xFFFF;for(const x of b){c^=x<<8;for(let i=0;i<8;i++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF;}return c;}
+
+/* ================= GF(256) RS ================= */
+const GF_EXP=new Uint8Array(512),GF_LOG=new Uint8Array(256);
+{let x=1;for(let i=0;i<255;i++){GF_EXP[i]=x;GF_LOG[x]=i;x<<=1;if(x&0x100)x^=0x11d;}for(let i=255;i<512;i++)GF_EXP[i]=GF_EXP[i-255];}
+const gmul=(a,b)=>(a&&b)?GF_EXP[GF_LOG[a]+GF_LOG[b]]:0;
+const ginv=a=>GF_EXP[255-GF_LOG[a]];
+function polyEval(p,x){let y=0;for(let i=0;i<p.length;i++)y=gmul(y,x)^p[i];return y;}
+function polyMul(p,q){const r=new Array(p.length+q.length-1).fill(0);for(let i=0;i<p.length;i++)for(let j=0;j<q.length;j++)r[i+j]^=gmul(p[i],q[j]);return r;}
+const genCache={};
+function rsGen(r){if(genCache[r])return genCache[r];let g=[1];for(let i=0;i<r;i++)g=polyMul(g,[1,GF_EXP[i]]);return genCache[r]=g;}
+function rsEncode(data,r){const g=rsGen(r);const rem=new Uint8Array(data.length+r);rem.set(data);for(let i=0;i<data.length;i++){const c=rem[i];if(c)for(let j=1;j<g.length;j++)rem[i+j]^=gmul(g[j],c);}return rem.slice(data.length);}
+function syndromes(cw,r){const S=new Array(r);for(let k=0;k<r;k++)S[k]=polyEval(cw,GF_EXP[k]);return S;}
+function rsCorrect(cw,r,eras,confs){
+  if(eras.length>r)return false;
+  if(syndromes(cw,r).every(v=>v===0))return true;
+  const attempt=E=>{
+    const v=E.length;if(v===0||v>r)return false;
+    const S=syndromes(cw,r),n=cw.length,X=E.map(p=>GF_EXP[(n-1-p)%255]);
+    let L=[1];for(const x of X){const nl=new Array(L.length+1).fill(0);for(let i=0;i<L.length;i++){nl[i]^=L[i];nl[i+1]^=gmul(L[i],x);}L=nl;}
+    const O=new Array(r).fill(0);
+    for(let i=0;i<r;i++){if(!S[i])continue;for(let k=0;k<L.length&&i+k<r;k++)O[i+k]^=gmul(S[i],L[k]);}
+    for(let j=0;j<v;j++){
+      const xi=ginv(X[j]);let num=0;for(let i=O.length-1;i>=0;i--)num=gmul(num,xi)^O[i];
+      let den=1;for(let l=0;l<v;l++)if(l!==j)den=gmul(den,1^gmul(X[l],xi));
+      if(den===0)return false;cw[E[j]]^=gmul(num,ginv(den));
+    }
+    return syndromes(cw,r).every(v=>v===0);
+  };
+  if(eras.length>0&&attempt(eras.slice()))return true;
+  if(confs&&eras.length<r){
+    const set=new Set(eras),cand=[];for(let i=0;i<cw.length;i++)if(!set.has(i))cand.push(i);
+    cand.sort((a,b)=>confs[b]-confs[a]);
+    const E=eras.concat(cand.slice(0,r-eras.length));
+    if(E.length>0&&attempt(E))return true;
+  }
+  return false;
+}
+function interleave(cws,ns){let mx=0,t=0;for(const n of ns){if(n>mx)mx=n;t+=n;}const o=new Uint8Array(t);let p=0;for(let pos=0;pos<mx;pos++)for(let c=0;c<cws.length;c++)if(pos<ns[c])o[p++]=cws[c][pos];return o;}
+function deinterleave(buf,ns,Type){Type=Type||Uint8Array;const cws=ns.map(n=>new Type(n));let p=0,mx=0;for(const n of ns)if(n>mx)mx=n;for(let pos=0;pos<mx;pos++)for(let c=0;c<ns.length;c++)if(pos<ns[c])cws[c][pos]=buf[p++];return cws;}
+
+/* ================= 压缩 ================= */
+const hasCS=typeof CompressionStream!=='undefined',hasDS=typeof DecompressionStream!=='undefined';
+async function deflate(buf){return new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());}
+async function inflate(buf){return new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());}
+
+/* ================= 参数 / 布局 ================= */
+const MODES={bin:{b:1,lv:2,rgb:false},g4:{b:2,lv:4,rgb:false},g16:{b:4,lv:16,rgb:false},rgb:{b:8,lv:256,rgb:true}};
+const ECCS={low:{f:.10,thr:.50},mid:{f:.25,thr:.38},high:{f:.40,thr:.30},max:{f:.60,thr:.22}};
+const MAGIC=[0x46,0x56];
+function autoMbps(mode,w,h,fps){const base={1:3,2:6,4:12,8:60}[mode.b];let v=base*(w*h/2073600)*(fps/30);return Math.round(Math.max(1,Math.min(150,v))*2)/2;}
+function getParams(){
+  const [w,h]=$('#res').value.split('x').map(Number);
+  const fps=+$('#fps').value,mode=MODES[$('#mode').value],ecc=ECCS[$('#ecc').value];
+  const bs=mode.rgb?1:+$('#bs').value,rep=+$('#rep').value,kf=+$('#kf').value,r=Math.round(255*ecc.f);
+  const mb=$('#autoBr').checked?autoMbps(mode,w,h,fps):Math.max(.5,+$('#br').value||1);
+  return {w,h,fps,mode,ecc,bs,rep,kf,r,bitrate:Math.round(mb*1e6),mb,brMode:$('#brMode').value,comp:$('#comp').checked&&hasCS,verify:$('#verify').checked};
+}
+function layout(w,h,bs,b,rgb,r){
+  const bodyH=h-16;let S,crcSym,cols=0,rows=0;
+  if(rgb){S=w*bodyH*3;crcSym=4;}else{cols=Math.floor(w/bs);rows=Math.floor(bodyH/bs);S=cols*rows;crcSym=32/b;}
+  const availBytes=rgb?S-4:Math.floor((S-crcSym)*b/8);
+  const numCW=Math.ceil(availBytes/255);if(numCW<1)throw new Error('分辨率太小');
+  const base=Math.floor(availBytes/numCW),extra=availBytes%numCW;
+  const ns=[],ks=[];let cbf=0,total=0;
+  for(let c=0;c<numCW;c++){const n=base+(c<extra?1:0);if(n-r<=0)throw new Error('分辨率/块大小不足以容纳纠错码');ns.push(n);ks.push(n-r);cbf+=n-r;total+=n;}
+  return {S,crcSym,numCW,ns,ks,cbf,totalCWbytes:total,cols,rows};
+}
+
+/* ================= 帧绘制 ================= */
+const lvCache={};
+function levelColors(lv){if(lvCache[lv])return lvCache[lv];const a=[];for(let s=0;s<lv;s++){const v=Math.round(s*255/(lv-1));a.push(`rgb(${v},${v},${v})`);}return lvCache[lv]=a;}
+function headerBytes(type,index){const b=new Uint8Array(8);b[0]=MAGIC[0];b[1]=MAGIC[1];b[2]=(type<<4)|((index>>>24)&15);b[3]=(index>>>16)&255;b[4]=(index>>>8)&255;b[5]=index&255;const c=crc16(b.subarray(0,6));b[6]=c>>8;b[7]=c&255;return b;}
+function drawHeader(ctx,w,type,index){const hb=headerBytes(type,index),n=Math.floor(w/16);ctx.fillStyle='#000';ctx.fillRect(0,0,w,16);ctx.fillStyle='#fff';for(let i=0;i<n;i++){const bit=i<64?((hb[i>>3]>>(7-(i&7)))&1):(i%2===0?1:0);if(bit)ctx.fillRect(i*16,0,16,16);}}
+function buildMetaBuf(meta,w,h){const json=te.encode(JSON.stringify(meta));const cap=Math.floor(w/16)*Math.floor((h-16)/16);if(6+json.length>Math.floor(cap/8))throw new Error('元数据过大：请提高分辨率或缩短文件名');const buf=new Uint8Array(6+json.length);buf.set(u32(crc32(json)),0);buf[4]=json.length>>8;buf[5]=json.length&255;buf.set(json,6);return buf;}
+function drawMetaFrame(ctx,buf,index,w,h){drawHeader(ctx,w,0,index);ctx.fillStyle='#000';ctx.fillRect(0,16,w,h-16);ctx.fillStyle='#fff';const cols=Math.floor(w/16),rows=Math.floor((h-16)/16),bits=Math.min(buf.length*8,cols*rows);for(let i=0;i<bits;i++)if((buf[i>>3]>>(7-(i&7)))&1)ctx.fillRect((i%cols)*16,16+Math.floor(i/cols)*16,16,16);}
+function packSymbols(bytes,b,S){const syms=new Uint8Array(S),tb=bytes.length*8;let bp=0;for(let s=0;s<S&&bp<tb;s++){let v=0;for(let k=0;k<b;k++){v=(v<<1)|((bytes[bp>>3]>>(7-(bp&7)))&1);bp++;}syms[s]=v;}return syms;}
+function buildFrameBytes(payload,i,L,p){
+  const chunk=new Uint8Array(L.cbf);chunk.set(payload.subarray(i*L.cbf,Math.min((i+1)*L.cbf,payload.length)));
+  const cws=[];let off=0;
+  for(let c=0;c<L.numCW;c++){const data=chunk.subarray(off,off+L.ks[c]);off+=L.ks[c];const par=rsEncode(data,p.r),cw=new Uint8Array(L.ns[c]);cw.set(data);cw.set(par,L.ks[c]);cws.push(cw);}
+  const bytes=concatBytes([u32(crc32(chunk)),interleave(cws,L.ns)]);
+  return p.mode.rgb?bytes:packSymbols(bytes,p.mode.b,L.S);
+}
+function drawDataFrame(ctx,data,index,p,L){
+  const {w,h,bs,mode}=p;
+  if(mode.rgb){
+    const img=ctx.createImageData(w,h),d=img.data,hb=headerBytes(1,index);
+    for(let y=0;y<16;y++)for(let x=0;x<w;x++){const i=x>>4;const bit=i<64?((hb[i>>3]>>(7-(i&7)))&1):(i%2===0?1:0);const v=bit?255:0;const o=(y*w+x)*4;d[o]=d[o+1]=d[o+2]=v;d[o+3]=255;}
+    let bp=0;for(let y=16;y<h;y++)for(let x=0;x<w;x++){const o=(y*w+x)*4;for(let c=0;c<3;c++)d[o+c]=bp<data.length?data[bp++]:0;d[o+3]=255;}
+    ctx.putImageData(img,0,0);
+  }else{
+    drawHeader(ctx,w,1,index);ctx.fillStyle='#000';ctx.fillRect(0,16,w,h-16);
+    const colors=levelColors(mode.lv);
+    for(let s=0;s<L.S;s++){ctx.fillStyle=colors[data[s]];ctx.fillRect((s%L.cols)*bs,16+Math.floor(s/L.cols)*bs,bs,bs);}
+  }
+}
+
+/* ================= 采样 / 解码 ================= */
+function sampleLuma(d,w,x,y,bs){const m=Math.max(1,bs>>2),x0=x+m,y0=y+m,x1=x+bs-m,y1=y+bs-m;let sum=0,n=0;for(let yy=y0;yy<y1;yy++){let i=(yy*w+x0)*4;for(let xx=x0;xx<x1;xx++){sum+=.299*d[i]+.587*d[i+1]+.114*d[i+2];i+=4;n++;}}return sum/n;}
+function headerRefs(d,w){
+  const n=Math.floor(w/16);let b=0,bn=0,wh=0,wn=0;
+  for(let i=64;i<n;i++){const l=sampleLuma(d,w,i*16,0,16);if(i%2===0){wh+=l;wn++;}else{b+=l;bn++;}}
+  let black=bn?b/bn:0,white=wn?wh/wn:255;
+  if(white-black<40){black=0;white=255;}
+  return {black,white};
+}
+function readHeader(d,w){
+  if(w<1024)return null;const b=new Uint8Array(8);
+  for(let i=0;i<64;i++)if(sampleLuma(d,w,i*16,0,16)>127)b[i>>3]|=1<<(7-(i&7));
+  if(b[0]!==MAGIC[0]||b[1]!==MAGIC[1])return null;
+  if(crc16(b.subarray(0,6))!==((b[6]<<8)|b[7]))return null;
+  return {type:b[2]>>4,index:(((b[2]&15)<<24)|(b[3]<<16)|(b[4]<<8)|b[5])>>>0};
+}
+function readMeta(d,w,h){
+  const cols=Math.floor(w/16),rows=Math.floor((h-16)/16),bits=cols*rows,bytes=new Uint8Array(Math.ceil(bits/8)),refs=headerRefs(d,w),mid=(refs.black+refs.white)/2;
+  for(let i=0;i<bits;i++){const x=(i%cols)*16,y=16+Math.floor(i/cols)*16;if(sampleLuma(d,w,x,y,16)>mid)bytes[i>>3]|=1<<(7-(i&7));}
+  if(bytes.length<6)return null;const crc=readU32be(bytes,0),len=(bytes[4]<<8)|bytes[5];
+  if(len<=0||6+len>bytes.length)return null;const json=bytes.subarray(6,6+len);
+  if(crc32(json)!==crc)return null;
+  try{const m=JSON.parse(td.decode(json));return m&&m.v===1?m:null;}catch(e){return null;}
+}
+function sampleGray(d,meta,L){
+  const syms=new Uint8Array(L.S),cf=new Float32Array(L.S),lv=meta.lv,refs=headerRefs(d,meta.w);
+  const span=refs.white-refs.black,step=255/(lv-1);
+  for(let s=0;s<L.S;s++){
+    const x=(s%L.cols)*meta.bs,y=16+Math.floor(s/L.cols)*meta.bs;
+    const l=sampleLuma(d,meta.w,x,y,meta.bs);
+    const t=(l-refs.black)/span*255;
+    let v=Math.round(t/step);if(v<0)v=0;if(v>lv-1)v=lv-1;
+    syms[s]=v;cf[s]=Math.min(1,Math.abs(t-v*step)/(step/2));
+  }
+  return {syms,confs:cf};
+}
+function grayToBytes(syms,confs,L,b){
+  let crcExp=0;for(let s=0;s<L.crcSym;s++)crcExp=((crcExp<<b)|syms[s])>>>0;
+  const spb=8/b,total=L.totalCWbytes,bytes=new Uint8Array(4+total),conf=new Float32Array(total);
+  bytes.set(u32(crcExp),0);
+  for(let j=0;j<total;j++){let v=0,c=0;const base=L.crcSym+j*spb;for(let k=0;k<spb;k++){v=(v<<b)|syms[base+k];if(confs[base+k]>c)c=confs[base+k];}bytes[4+j]=v;conf[j]=c;}
+  return {bytes,conf,crcExp};
+}
+function decodeData(d,meta,L){
+  let bytes,conf=null,crcExp;
+  if(meta.rgb){
+    const need=4+L.totalCWbytes,buf=new Uint8Array(need);let p=0;
+    outer:for(let y=16;y<meta.h;y++)for(let x=0;x<meta.w;x++){const o=(y*meta.w+x)*4;for(let c=0;c<3;c++){buf[p++]=d[o+c];if(p>=need)break outer;}}
+    bytes=buf;crcExp=readU32be(bytes,0);
+  }else{
+    const g=sampleGray(d,meta,L),r=grayToBytes(g.syms,g.confs,L,meta.b);
+    bytes=r.bytes;conf=r.conf;crcExp=r.crcExp;
+  }
+  const cws=deinterleave(bytes.subarray(4),L.ns);
+  const flags=conf?Uint8Array.from(conf,c=>c>meta.thr?1:0):null;
+  const cwF=flags?deinterleave(flags,L.ns):null,cwC=conf?deinterleave(conf,L.ns,Float32Array):null;
+  const parts=[];
+  for(let c=0;c<L.numCW;c++){
+    const cw=cws[c],eras=[];if(cwF)for(let i=0;i<cw.length;i++)if(cwF[c][i])eras.push(i);
+    if(!rsCorrect(cw,meta.r,eras,cwC?cwC[c]:null))return null;
+    parts.push(cw.subarray(0,L.ks[c]));
+  }
+  const chunk=concatBytes(parts);
+  return crc32(chunk)===crcExp?chunk:null;
+}
+
+/* ================= MP4 封装 ================= */
+function box(type,...payload){let len=8;for(const p of payload)len+=p.length;const o=new Uint8Array(len);o.set(u32(len),0);o.set(te.encode(type),4);let p=8;for(const a of payload){o.set(a,p);p+=a.length;}return o;}
+function fullbox(type,ver,flags,...payload){return box(type,new Uint8Array([ver,(flags>>16)&255,(flags>>8)&255,flags&255]),...payload);}
+function visualEntry(w,h){const b=new Uint8Array(78);b[7]=1;b[24]=w>>8;b[25]=w&255;b[26]=h>>8;b[27]=h&255;b[29]=0x48;b[33]=0x48;b[41]=1;const nm=te.encode('FrameVault');b[42]=nm.length;b.set(nm,43);b[75]=0x18;b[76]=0xff;b[77]=0xff;return b;}
+function muxMP4(samples,codec,desc,w,h,fps){
+  const n=samples.length,durUs=Math.round(1e6/fps);
+  const ftyp=box('ftyp',te.encode('isom'),u32(0x200),te.encode('isomiso2mp41'));
+  const mdat=box('mdat',concatBytes(samples.map(s=>s.bytes)));
+  const mdatOff=ftyp.length+8;
+  let entry;
+  if(codec.startsWith('vp09')){
+    const pr=+codec.split('.')[1],lv=+codec.split('.')[2],bd=+codec.split('.')[3];
+    entry=box('vp09',visualEntry(w,h),box('vpcC',new Uint8Array([1,0,0,0,pr,lv,(bd<<4)|0,1,1,1,1,0,0])));
+  }else{
+    if(!desc)throw new Error('H264 缺少解码配置');
+    entry=box('avc1',visualEntry(w,h),box('avcC',desc));
+  }
+  const stsd=fullbox('stsd',0,0,u32(1),entry);
+  const stts=fullbox('stts',0,0,u32(1),u32(n),u32(durUs));
+  const keys=[];samples.forEach((s,i)=>{if(s.key)keys.push(i+1);});
+  const stss=keys.length===n?null:fullbox('stss',0,0,u32(keys.length),...keys.map(u32));
+  const stsc=fullbox('stsc',0,0,u32(1),u32(1),u32(n),u32(1));
+  const sizes=new Uint8Array(n*4);samples.forEach((s,i)=>sizes.set(u32(s.bytes.length),i*4));
+  const stsz=fullbox('stsz',0,0,u32(0),u32(n),sizes);
+  const stco=fullbox('stco',0,0,u32(1),u32(mdatOff));
+  const stbl=box('stbl',stsd,stts,...(stss?[stss]:[]),stsc,stsz,stco);
+  const vmhd=fullbox('vmhd',0,1,u16(0),new Uint8Array(6));
+  const dref=fullbox('dref',0,0,u32(1),fullbox('url ',0,1));
+  const dinf=box('dinf',dref);
+  const minf=box('minf',vmhd,dinf,stbl);
+  const mdhd=fullbox('mdhd',0,0,u32(0),u32(0),u32(1e6),u32(n*durUs),u16(0x55C4),u16(0));
+  const hdlr=fullbox('hdlr',0,0,u32(0),te.encode('vide'),new Uint8Array(12),te.encode('VideoHandler\0'));
+  const mdia=box('mdia',mdhd,hdlr,minf);
+  const matrix=concatBytes([u32(0x10000),u32(0),u32(0),u32(0),u32(0x10000),u32(0),u32(0),u32(0),u32(0x40000000)]);
+  const tkhd=fullbox('tkhd',0,3,u32(0),u32(0),u32(1),u32(0),u32(Math.round(n*durUs/1000)),new Uint8Array(8),u16(0),u16(0),u16(0),u16(0),matrix,u32(w*65536),u32(h*65536));
+  const trak=box('trak',tkhd,mdia);
+  const mvhd=fullbox('mvhd',0,0,u32(0),u32(0),u32(1000),u32(Math.round(n*durUs/1000)),u32(0x10000),u16(0x100),u16(0),new Uint8Array(8),matrix,new Uint8Array(24),u32(2));
+  const moov=box('moov',mvhd,trak);
+  return concatBytes([ftyp,mdat,moov]);
+}
+
+/* ================= MP4 解封装 ================= */
+function parseBoxes(buf,start,end){const out=[];let p=start;const dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength);while(p+8<=end){let size=dv.getUint32(p);const type=td.decode(buf.subarray(p+4,p+8));let hdr=8;if(size===1){size=Number(dv.getBigUint64(p+8));hdr=16;}else if(size===0)size=end-p;if(size<hdr||p+size>end)break;out.push({type,start:p,end:p+size,content:p+hdr});p+=size;}return out;}
+function demuxMP4(ab){
+  const buf=new Uint8Array(ab),dv=new DataView(ab);
+  const top=parseBoxes(buf,0,buf.length);
+  const mdat=top.find(b=>b.type==='mdat'),moov=top.find(b=>b.type==='moov');
+  if(!mdat||!moov)return null;
+  const kids=b=>parseBoxes(buf,b.content,b.end);
+  const find=(b,t)=>kids(b).find(x=>x.type===t);
+  let stbl=null,mdhd=null;
+  for(const trak of kids(moov).filter(b=>b.type==='trak')){
+    const mdia=find(trak,'mdia');if(!mdia)continue;
+    const hdlr=find(mdia,'hdlr');
+    if(hdlr&&td.decode(buf.subarray(hdlr.content+8,hdlr.content+12))==='vide'){
+      const minf=find(mdia,'minf');stbl=minf&&find(minf,'stbl');mdhd=find(mdia,'mdhd');break;
+    }
+  }
+  if(!stbl||!mdhd)return null;
+  const ver=buf[mdhd.content],tsOff=ver===1?20:12,timescale=dv.getUint32(mdhd.content+tsOff)||1e6;
+  const stsd=find(stbl,'stsd');if(!stsd)return null;
+  const entries=parseBoxes(buf,stsd.content+8,stsd.end);if(!entries.length)return null;
+  const en=entries[0],ec=buf.subarray(en.content,en.end);
+  const width=dv.getUint16(en.content+24),height=dv.getUint16(en.content+26);
+  const eKids=parseBoxes(buf,en.content+78,en.end);
+  let codec,description;
+  if(en.type==='avc1'||en.type==='avc3'){
+    const avcC=eKids.find(b=>b.type==='avcC');if(!avcC)return null;
+    description=buf.subarray(avcC.content,avcC.end);
+    const hx=v=>v.toString(16).padStart(2,'0');
+    codec='avc1.'+hx(description[1])+hx(description[2])+hx(description[3]);
+  }else if(en.type==='vp09'){
+    const vpcC=eKids.find(b=>b.type==='vpcC');if(!vpcC)return null;
+    const c=buf.subarray(vpcC.content,vpcC.end);
+    codec='vp09.'+String(c[4]).padStart(2,'0')+'.'+String(c[5]).padStart(2,'0')+'.'+String(c[6]>>4).padStart(2,'0');
+  }else return null;
+  const stsz=find(stbl,'stsz');if(!stsz)return null;
+  const ss=dv.getUint32(stsz.content+4),cnt=dv.getUint32(stsz.content+8);
+  const sizes=[];for(let i=0;i<cnt;i++)sizes.push(ss||dv.getUint32(stsz.content+12+i*4));
+  const stco=find(stbl,'stco'),co64=find(stbl,'co64');const offs=[];
+  if(stco){const c=dv.getUint32(stco.content+4);for(let i=0;i<c;i++)offs.push(dv.getUint32(stco.content+8+i*4));}
+  else if(co64){const c=dv.getUint32(co64.content+4);for(let i=0;i<c;i++)offs.push(Number(dv.getBigUint64(co64.content+8+i*8)));}
+  else return null;
+  const stsc=find(stbl,'stsc');if(!stsc)return null;
+  const scCnt=dv.getUint32(stsc.content+4),sc=[];
+  for(let i=0;i<scCnt;i++){const o=stsc.content+8+i*12;sc.push({fc:dv.getUint32(o),spc:dv.getUint32(o+4)});}
+  const stts=find(stbl,'stts');if(!stts)return null;
+  const ttCnt=dv.getUint32(stts.content+4),deltas=[];
+  for(let i=0;i<ttCnt;i++){const o=stts.content+8+i*8;deltas.push({c:dv.getUint32(o),d:dv.getUint32(o+4)});}
+  const stss=find(stbl,'stss');const keySet=new Set();
+  if(stss){const c=dv.getUint32(stss.content+4);for(let i=0;i<c;i++)keySet.add(dv.getUint32(stss.content+8+i*4));}
+  const samples=[];let si=0,pts=0,di=0,dleft=deltas[0]?deltas[0].c:0;
+  for(let e=0;e<sc.length&&si<cnt;e++){
+    const last=e+1<sc.length?sc[e+1].fc-1:offs.length;
+    for(let c=sc[e].fc-1;c<last&&si<cnt;c++){
+      let off=offs[c];
+      for(let j=0;j<sc[e].spc&&si<cnt;j++){
+        while(dleft===0&&di+1<deltas.length){di++;dleft=deltas[di].c;}
+        const d=deltas[di]?deltas[di].d:Math.round(timescale/30);
+        samples.push({offset:off,size:sizes[si],pts,dur:d,key:stss?keySet.has(si+1):true});
+        off+=sizes[si];si++;pts+=d;if(dleft>0)dleft--;
+      }
+    }
+  }
+  if(samples.length!==cnt||!samples.length)return null;
+  return {codec,description,width,height,timescale,samples,count:cnt};
+}
+
+/* ================= WebCodecs 编 / 解码 ================= */
+const hasVE=typeof VideoEncoder!=='undefined',hasVD=typeof VideoDecoder!=='undefined';
+function avcCodec(w,h,fps){const mbps=(w*h/256)*fps;if(w*h>2073600||fps>60)return 'avc1.640034';if(mbps>245760)return 'avc1.64002A';return 'avc1.640028';}
+async function negotiate(p){
+  if(!hasVE)return null;
+  const cands=['vp09.00.51.08',avcCodec(p.w,p.h,p.fps),'avc1.640028'];
+  for(const codec of cands){
+    const cfg={codec,width:p.w,height:p.h,bitrate:p.bitrate,framerate:p.fps,latencyMode:'quality',bitrateMode:p.brMode,contentHint:'detail'};
+    if(codec.startsWith('avc'))cfg.avc={format:'avc'};
+    try{const s=await VideoEncoder.isConfigSupported(cfg);if(s.supported)return {codec,config:s.config||cfg};}catch(e){}
+  }
+  return null;
+}
+async function encodeFrames(canvas,drawFrame,total,p,ci,onProg,ctl){
+  const samples=[];let meta=null,err=null;
+  const enc=new VideoEncoder({output:(ch,m)=>{const b=new Uint8Array(ch.byteLength);ch.copyTo(b);samples.push({bytes:b,key:ch.type==='key',timestamp:ch.timestamp});if(m&&m.decoderConfig)meta=m.decoderConfig;},error:e=>{err=e;}});
+  enc.configure(ci.config);
+  const durUs=Math.round(1e6/p.fps);
+  try{
+    for(let i=0;i<total;i++){
+      if(ctl.cancelled)throw new Error('cancel');if(err)throw err;
+      drawFrame(i);
+      const vf=new VideoFrame(canvas,{timestamp:i*durUs,duration:durUs});
+      enc.encode(vf,{keyFrame:i%p.kf===0});vf.close();
+      while(enc.encodeQueueSize>4){
+        if(err)throw err;
+        await new Promise(r=>{let done=false;const h=()=>{if(done)return;done=true;enc.removeEventListener('dequeue',h);r();};enc.addEventListener('dequeue',h);setTimeout(h,40);});
+      }
+      onProg(i+1,total);
+      if(i%6===0)await sleep(0);
+    }
+    await enc.flush();
+  }finally{try{enc.close();}catch(e){}}
+  if(err)throw err;
+  if(samples.length!==total)throw new Error('编码器输出帧数与输入不符');
+  samples.sort((a,b)=>a.timestamp-b.timestamp);
+  return {samples,desc:meta?meta.description:null};
+}
+async function decodeSamples(dm,buf,onFrame,ctl){
+  if(!hasVD)throw new Error('no VideoDecoder');
+  const cfg={codec:dm.codec,codedWidth:dm.width,codedHeight:dm.height};
+  if(dm.description)cfg.description=dm.description;
+  const sup=await VideoDecoder.isConfigSupported(cfg);
+  if(!sup.supported)throw new Error('解码器不支持 '+dm.codec);
+  let err=null;
+  const dec=new VideoDecoder({output:f=>{try{onFrame(f);}catch(e){err=e;}finally{f.close();}},error:e=>{err=e;}});
+  dec.configure(cfg);
+  try{
+    for(let i=0;i<dm.samples.length;i++){
+      if(ctl.cancelled)throw new Error('cancel');if(err)throw err;
+      const s=dm.samples[i];
+      while(dec.decodeQueueSize>8){await sleep(2);if(err)throw err;}
+      dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta',timestamp:s.pts,duration:s.dur,data:buf.subarray(s.offset,s.offset+s.size)}));
+    }
+    await dec.flush();
+  }finally{try{dec.close();}catch(e){}}
+  if(err)throw err;
+}
+function seekTo(v,t){return new Promise(res=>{let done=false;const h=()=>{if(done)return;done=true;v.removeEventListener('seeked',h);res();};v.addEventListener('seeked',h);try{v.currentTime=t;}catch(e){h();}setTimeout(h,3000);});}
+async function videoSeekDecode(blob,dm,handle,ctl,state){
+  const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';
+  const url=URL.createObjectURL(blob);v.src=url;
+  try{
+    await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=()=>rej(new Error('视频无法加载'));});
+    if(!isFinite(v.duration))await seekTo(v,1e7);
+    let i=0,t=0;
+    while(!ctl.cancelled){
+      if(state.meta&&state.good.size>=state.meta.n)break;
+      if(dm){
+        if(i>=dm.count)break;
+        const d=dm.samples[0].dur||dm.timescale/30;
+        t=(i+.5)*d/dm.timescale;i++;
+      }else{
+        if(isFinite(v.duration)&&t>=v.duration)break;
+        const step=state.meta?v.duration/(3+state.meta.n*state.meta.rep):1/30;
+        t=i===0?0:t+step*.9;i++;
+        if(!state.meta&&i>150)break;
+      }
+      await seekTo(v,t);
+      if(ctl.cancelled)break;
+      handle(v);
+    }
+  }finally{v.pause();v.removeAttribute('src');v.load();URL.revokeObjectURL(url);}
+}
+
+/* ================= 统一解码管线 ================= */
+async function decodeBlob(blob,opts){
+  const ctl=opts.ctl||{cancelled:false};
+  const ab=await blob.arrayBuffer(),buf=new Uint8Array(ab);
+  let dm=null;try{dm=demuxMP4(ab);}catch(e){dm=null;}
+  const state={meta:null,L:null,good:new Map(),bad:0,dup:0,skip:0,status:null,recovered:0};
+  const canvas=document.createElement('canvas');let ctx=null,cw=0,chh=0;
+  const ensureSize=(w,h)=>{if(cw!==w||chh!==h){cw=w;chh=h;canvas.width=w;canvas.height=h;ctx=canvas.getContext('2d',{willReadFrequently:true});}};
+  const handle=src=>{
+    const w=src.videoWidth||src.displayWidth||src.codedWidth||dm?.width||cw;
+    const h=src.videoHeight||src.displayHeight||src.codedHeight||dm?.height||chh;
+    ensureSize(w,h);
+    ctx.drawImage(src,0,0);
+    const d=ctx.getImageData(0,0,w,h).data;
+    const hdr=readHeader(d,w);
+    if(!hdr){state.skip++;return;}
+    if(hdr.type===0){
+      if(state.meta)return;
+      const m=readMeta(d,w,h);
+      if(m&&m.w===w&&m.h===h){
+        state.meta=m;state.L=layout(m.w,m.h,m.bs,m.b,m.rgb,m.r);
+        const total=3+m.n*m.rep;state.status=new Uint8Array(total);
+        opts.onMeta&&opts.onMeta(m,dm);
+      }
+      return;
+    }
+    if(hdr.type===1&&state.meta&&state.L){
+      if(state.good.has(hdr.index)){state.dup++;return;}
+      const chunk=decodeData(d,state.meta,state.L);
+      if(chunk){
+        const wasBad=state.status&&state.status[3+hdr.index*state.meta.rep]===2;
+        state.good.set(hdr.index,chunk);
+        if(state.status){for(let k=0;k<state.meta.rep;k++){const gi=3+hdr.index*state.meta.rep+k;if(state.status[gi]===2)state.recovered++;state.status[gi]=wasBad?3:1;}}
+      }else{state.bad++;if(state.status)state.status[3+hdr.index*state.meta.rep]=2;}
+    }
+    opts.onState&&opts.onState(state);
+  };
+  let path='video';
+  if(dm&&hasVD){
+    try{await decodeSamples(dm,buf,handle,ctl);path='webcodecs';}
+    catch(e){if(String(e.message)==='cancel')throw e;dm=null;}
+  }
+  if(path==='video')await videoSeekDecode(blob,dm,handle,ctl,state);
+  if(!state.meta)return {ok:false,state,reason:'未找到有效的 F2V 元数据帧（非本工具视频，或已被二次转码破坏）',path};
+  const missing=[];const parts=[];
+  for(let i=0;i<state.meta.n;i++){if(state.good.has(i))parts.push(state.good.get(i));else{missing.push(i);parts.push(new Uint8Array(state.L.cbf));}}
+  const payload=concatBytes(parts).subarray(0,state.meta.size);
+  const crcOk=crc32(payload)===state.meta.crc;
+  let raw=null,rawOk=false;
+  if(!missing.length&&crcOk){
+    try{raw=state.meta.comp==='dr'?await inflate(payload):payload;rawOk=raw.length===state.meta.raw&&crc32(raw)===state.meta.crcRaw;}catch(e){rawOk=false;}
+  }
+  return {ok:!missing.length&&crcOk&&rawOk,raw,payload,missing,crcOk,rawOk,state,meta:state.meta,path};
+}
+
+/* ================= 编码主流程 ================= */
+let encFile=null,encRaw=null,encRunning=false,encCtl=null,payloadCache=null,encBlobUrl=null;
+const encLogEl=$('#encLog');
+async function ensurePayload(){
+  if(!encFile)return null;
+  const key=encFile.name+'|'+encFile.size+'|'+encFile.lastModified+'|'+$('#comp').checked;
+  if(payloadCache&&payloadCache.key===key)return payloadCache;
+  if(!encRaw)encRaw=new Uint8Array(await encFile.arrayBuffer());
+  let payload,flag;
+  if($('#comp').checked&&hasCS){payload=await deflate(encRaw);flag='dr';}else{payload=encRaw;flag='none';}
+  payloadCache={key,payload,flag};return payloadCache;
+}
+function pickMime(){for(const m of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'])if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;return '';}
+async function fallbackRecord(canvas,drawLogical,logicalTotal,p,onProg,ctl){
+  const mime=pickMime();if(!mime)throw new Error('浏览器不支持视频录制');
+  const manualStream=canvas.captureStream(0);
+  const track=manualStream.getVideoTracks()[0];
+  const manual=typeof track.requestFrame==='function';
+  const stream=manual?manualStream:canvas.captureStream(p.fps);
+  try{stream.getVideoTracks()[0].contentHint='detail';}catch(e){}
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:p.bitrate});
+  const chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+  const stopped=new Promise(r=>rec.onstop=r);
+  rec.start(500);
+  const hold=2,baseDur=1000/p.fps;let vi=0;const t0=performance.now();
+  try{
+    for(let i=0;i<logicalTotal;i++){
+      if(ctl.cancelled)throw new Error('cancel');
+      const td0=performance.now();drawLogical(i);
+      const drawMs=performance.now()-td0;
+      const dur=Math.max(baseDur,drawMs*1.25)/hold;
+      for(let k=0;k<hold;k++){
+        if(manual)track.requestFrame();
+        vi++;const wait=t0+vi*dur-performance.now();
+        await sleep(Math.max(4,wait));
+        if(ctl.cancelled)throw new Error('cancel');
+      }
+      onProg(i+1,logicalTotal);
+    }
+    await sleep(120);rec.stop();await stopped;
+  }finally{stream.getTracks().forEach(t=>t.stop());if(manual)manualStream.getTracks().forEach(t=>t.stop());}
+  return {blob:new Blob(chunks,{type:mime.split(';')[0]}),ext:mime.includes('mp4')?'mp4':'webm'};
+}
+async function startEncode(){
+  if(encRunning||!encFile)return;
+  const p=getParams();let L;
+  try{L=layout(p.w,p.h,p.bs,p.mode.b,p.mode.rgb,p.r);}catch(e){log(encLogEl,'❌ '+e.message);return;}
+  encRunning=true;encCtl={cancelled:false};
+  $('#encStart').disabled=true;$('#encCancel').classList.remove('hidden');$('#encResult').classList.add('hidden');$('#hardenBtn').classList.add('hidden');
+  const canvas=$('#encCanvas');canvas.classList.remove('hidden');canvas.width=p.w;canvas.height=p.h;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  let blob=null,ext='mp4',verifyRes=null;
+  try{
+    log(encLogEl,'压缩载荷…');
+    const pc=await ensurePayload();
+    const N=Math.ceil(pc.payload.length/L.cbf);
+    const meta={v:1,w:p.w,h:p.h,bs:p.bs,b:p.mode.b,lv:p.mode.lv,rgb:p.mode.rgb?1:0,r:p.r,thr:p.ecc.thr,fps:p.fps,rep:p.rep,n:N,size:pc.payload.length,raw:encRaw.length,comp:pc.flag,name:encFile.name.slice(0,120),mime:encFile.type||'application/octet-stream',crc:crc32(pc.payload),crcRaw:crc32(encRaw)};
+    const metaBuf=buildMetaBuf(meta,p.w,p.h);
+    const logicalTotal=3+N*p.rep;
+    let lastIdx=-1,lastData=null;
+    const drawLogical=i=>{
+      if(i<3){drawMetaFrame(ctx,metaBuf,i,p.w,p.h);return;}
+      const di=Math.floor((i-3)/p.rep);
+      if(di!==lastIdx){lastData=buildFrameBytes(pc.payload,di,L,p);lastIdx=di;}
+      drawDataFrame(ctx,lastData,di,p,L);
+    };
+    const ci=await negotiate(p);
+    const t0=performance.now();
+    const prog=(a,b)=>{$('#encBar').style.width=(a/b*88)+'%';const el=(performance.now()-t0)/1000;$('#encPct').textContent=`${a}/${b} 帧 · 剩余约 ${fmtDur(el/a*(b-a))}`;};
+    if(ci){
+      log(encLogEl,`WebCodecs 确定性编码：${ci.codec} · ${p.w}×${p.h}@${p.fps} · ${p.mb}Mbps ${p.brMode==='constant'?'CBR':'VBR'} · 关键帧间隔 ${p.kf} · 共 ${logicalTotal} 帧`);
+      const {samples,desc}=await encodeFrames(canvas,drawLogical,logicalTotal,p,ci,prog,encCtl);
+      log(encLogEl,'封装 MP4（完整样本索引）…');
+      const mp4=muxMP4(samples,ci.codec,desc?new Uint8Array(desc):null,p.w,p.h,p.fps);
+      blob=new Blob([mp4],{type:'video/mp4'});ext='mp4';
+    }else{
+      log(encLogEl,'⚠ 无 WebCodecs，退回兼容录制模式：每帧双倍冗余 + 自适应放慢，解码端按帧号去重补序。');
+      const r=await fallbackRecord(canvas,drawLogical,logicalTotal,p,prog,encCtl);
+      blob=r.blob;ext=r.ext;
+    }
+    $('#encBar').style.width='90%';$('#encPct').textContent='回读校验中…';
+    const vn=$('#verifyNote');
+    if(p.verify&&(hasVD||ext==='mp4')){
+      log(encLogEl,'自动校验：解封装 → 逐帧解码 → RS 纠错 → CRC 比对…');
+      verifyRes=await decodeBlob(blob,{ctl:encCtl,onState:s=>{const n=s.meta?s.meta.n:1;$('#encBar').style.width=(90+Math.min(1,s.good.size/n)*9)+'%';}});
+      if(verifyRes.ok){vn.className='note ok';vn.textContent=`✅ 回读校验通过：${verifyRes.state.good.size}/${verifyRes.meta.n} 帧全部还原，整体与原始 CRC32 均匹配。此文件可放心下载。`;log(encLogEl,'✅ 校验通过，视频可完整还原。');}
+      else{vn.className='note err';vn.textContent=`❌ 回读校验失败：缺失 ${verifyRes.missing.length} 帧${verifyRes.crcOk?'':'，CRC 不匹配'}。请点“一键加固重编”（自动提高容错/码率/冗余）。`;log(encLogEl,'❌ 校验未通过，建议加固重编。');$('#hardenBtn').classList.remove('hidden');}
+    }else{
+      vn.className='note warn';vn.textContent='⚠ 未执行自动校验（已关闭或浏览器不支持）。建议手动到“解码还原”页验证。';
+    }
+    if(encBlobUrl)URL.revokeObjectURL(encBlobUrl);
+    encBlobUrl=URL.createObjectURL(blob);
+    $('#encVideo').src=encBlobUrl;
+    const dl=$('#encDl');dl.href=encBlobUrl;dl.download=encFile.name+'.f2v.'+ext;
+    dl.textContent=verifyRes&&verifyRes.ok?'⬇ 下载编码视频（已校验）':'⬇ 下载编码视频';
+    const ratio=blob.size/encFile.size*100,sn=$('#encSizeNote');
+    sn.className='note '+(blob.size<encFile.size?'ok':'warn');
+    sn.textContent=`原文件 ${fmtBytes(encFile.size)} → 视频 ${fmtBytes(blob.size)}（${ratio.toFixed(1)}%）。`+(blob.size<encFile.size?'✅ 视频更小。':'该文件不可再压缩，视频含纠错与封装开销故更大（见“原理与限制”）。');
+    $('#encResult').classList.remove('hidden');
+    $('#encBar').style.width='100%';$('#encPct').textContent='完成';
+    log(encLogEl,`✅ 编码完成：${fmtBytes(blob.size)} · ${ext.toUpperCase()}`);
+  }catch(e){
+    if(String(e.message||e)==='cancel')log(encLogEl,'已取消。');
+    else log(encLogEl,'❌ 失败：'+(e.message||e));
+  }finally{
+    encRunning=false;$('#encStart').disabled=!encFile;$('#encCancel').classList.add('hidden');
+  }
+}
+
+/* ================= 信道体检 ================= */
+let probeTok=0,probeTimer=null;
+function scheduleProbe(){clearTimeout(probeTimer);probeTimer=setTimeout(runProbe,700);}
+async function runProbe(){
+  const tok=++probeTok,p=getParams();
+  const note=$('#probeNote');
+  if(encRunning)return;
+  if(!hasVE||!hasVD){note.textContent='当前浏览器无 WebCodecs，无法实测信道；将使用兼容录制模式，建议选“稳健”预设。';return;}
+  if(p.mode.rgb&&p.w*p.h>2200000){note.textContent='极限模式在此分辨率下数据量过大，跳过自动体检（可手动测试）。';return;}
+  let L;try{L=layout(p.w,p.h,p.bs,p.mode.b,p.mode.rgb,p.r);}catch(e){note.textContent='⚠ '+e.message;return;}
+  const ci=await negotiate(p);if(tok!==probeTok)return;
+  if(!ci){note.textContent='未找到可用编码器，将使用兼容模式。';return;}
+  note.textContent='📡 正在实测：随机数据帧 → 真实编码 → 解码 → 比对…';
+  $('#mVerdict').textContent='测试中';$('#mVerdict').className='verdict idle';
+  try{
+    const src=$('#probeSrc'),dst=$('#probeDst');
+    src.width=dst.width=p.w;src.height=dst.height=p.h;
+    const sctx=src.getContext('2d',{alpha:false}),dctx=dst.getContext('2d',{alpha:false});
+    const rnd=new Uint8Array(L.cbf);for(let i=0;i<rnd.length;i++)rnd[i]=(Math.random()*256)|0;
+    const orig=buildFrameBytes(rnd,0,L,p);
+    drawDataFrame(sctx,orig,0,p,L);
+    const ctl={cancelled:false};
+    const {samples,desc}=await encodeFrames(src,()=>{},1,p,ci,()=>{},ctl);
+    if(tok!==probeTok)return;
+    const mp4=muxMP4(samples,ci.codec,desc?new Uint8Array(desc):null,p.w,p.h,p.fps);
+    const dm=demuxMP4(mp4.buffer);
+    let decoded=null;
+    await decodeSamples(dm,new Uint8Array(mp4.buffer),f=>{dctx.drawImage(f,0,0);decoded=dctx.getImageData(0,0,p.w,p.h).data;},ctl);
+    if(tok!==probeTok)return;
+    if(!decoded)throw new Error('无解码输出');
+    let byteErr=0;
+    if(p.mode.rgb){
+      const need=4+L.totalCWbytes;let p2=0,err=0;
+      outer:for(let y=16;y<p.h;y++)for(let x=0;x<p.w;x++){const o=(y*p.w+x)*4;for(let c=0;c<3;c++){if(decoded[o+c]!==orig[p2])err++;p2++;if(p2>=need)break outer;}}
+      byteErr=err/need;
+    }else{
+      const meta={w:p.w,h:p.h,bs:p.bs,b:p.mode.b,lv:p.mode.lv};
+      const g=sampleGray(decoded,meta,L),r=grayToBytes(g.syms,g.confs,L,p.mode.b);
+      const ob=concatBytes([u32(crc32(rnd)),orig?new Uint8Array(0):new Uint8Array(0)]);
+      let err=0;const total=L.totalCWbytes;
+      const origBytes=(()=>{const cws=[];let off=0;for(let c=0;c<L.numCW;c++){const data=rnd.subarray(off,off+L.ks[c]);off+=L.ks[c];const par=rsEncode(data,p.r),cw=new Uint8Array(L.ns[c]);cw.set(data);cw.set(par,L.ks[c]);cws.push(cw);}return interleave(cws,L.ns);})();
+      for(let j=0;j<total;j++)if(r.bytes[4+j]!==origBytes[j])err++;
+      byteErr=err/total;
+    }
+    const cap=p.r/255,pct=byteErr*100;
+    $('#mNum').textContent=pct<0.01?'<0.01%':pct.toFixed(2)+'%';
+    $('#mPin').style.left=Math.min(99,byteErr/cap*62)+'%';
+    const v=$('#mVerdict');
+    if(byteErr<cap*.45){v.textContent='可靠 · 可完整还原';v.className='verdict ok';note.textContent=`✅ 实测错误率 ${pct.toFixed(2)}%，远低于纠错容量 ${(cap*100).toFixed(0)}%。当前参数可放心编码。`;}
+    else if(byteErr<cap*.85){v.textContent='临界 · 建议加固';v.className='verdict warn';note.textContent=`⚠ 实测错误率 ${pct.toFixed(2)}%，接近纠错容量 ${(cap*100).toFixed(0)}%。建议提高容错或码率，或开启帧重复。`;}
+    else{v.textContent='高危 · 大概率解不出';v.className='verdict err';note.textContent=`❌ 实测错误率 ${pct.toFixed(2)}% 超出纠错容量 ${(cap*100).toFixed(0)}%。请降低密度、提高码率/容错，否则视频将无法还原。`;}
+  }catch(e){if(tok===probeTok){note.textContent='体检失败：'+(e.message||e);$('#mVerdict').textContent='测试失败';$('#mVerdict').className='verdict err';}}
+}
+
+/* ================= 解码 UI ================= */
+let decFile=null,decRunning=false,decCtl=null,decBlobUrl=null;
+const decLogEl=$('#decLog');
+function paintMap(state){
+  const cv=$('#fmap'),ctx=cv.getContext('2d');
+  ctx.fillStyle='#080d17';ctx.fillRect(0,0,cv.width,cv.height);
+  if(!state.status)return;
+  const n=state.status.length,cols=['#1d2c45','#9dff3f','#ff5470','#ffb224'];
+  for(let i=0;i<n;i++){const x=Math.floor(i/n*cv.width),x2=Math.max(x+1,Math.floor((i+1)/n*cv.width));ctx.fillStyle=cols[state.status[i]];ctx.fillRect(x,0,x2-x,cv.height);}
+}
+async function startDecode(){
+  if(decRunning||!decFile)return;
+  decRunning=true;decCtl={cancelled:false};
+  $('#decStart').disabled=true;$('#decCancel').classList.remove('hidden');
+  $('#decResult').classList.add('hidden');$('#decDl').classList.add('hidden');$('#decDlPart').classList.add('hidden');
+  const fmapState={status:null,good:new Map(),meta:null};paintMap(fmapState);
+  let lastPaint=0;
+  try{
+    log(decLogEl,'开始解析：'+decFile.name);
+    const res=await decodeBlob(decFile,{ctl:decCtl,
+      onMeta:(m,dm)=>{log(decLogEl,`元数据 OK：「${m.name}」 原始 ${fmtBytes(m.raw)} · ${m.n} 数据帧 · ${m.w}×${m.h} · ${m.rgb?'RGB极限':m.lv+'级灰度'} · 冗余 ${m.r}/255 · 路径 ${dm?'MP4 精确解封装':'播放器逐帧定位'}`);},
+      onState:s=>{fmapState.status=s.status;fmapState.good=s.good;fmapState.meta=s.meta;
+        const now=performance.now();if(now-lastPaint>120){lastPaint=now;paintMap(s);
+          const n=s.meta?s.meta.n:0;$('#decBar').style.width=(n?s.good.size/n*100:0)+'%';
+          $('#decPct').textContent=`好帧 ${s.good.size}/${n||'?'} · 坏帧 ${s.bad} · 副本救回 ${s.recovered} · 重复跳过 ${s.dup}`;}}
+    });
+    paintMap(res.state);
+    const info=$('#decInfo');$('#decResult').classList.remove('hidden');
+    if(res.ok){
+      if(decBlobUrl)URL.revokeObjectURL(decBlobUrl);
+      decBlobUrl=URL.createObjectURL(new Blob([res.raw],{type:res.meta.mime}));
+      const dl=$('#decDl');dl.href=decBlobUrl;dl.download=res.meta.name;dl.classList.remove('hidden');
+      info.className='note ok';info.textContent=`✅ 完整还原：「${res.meta.name}」 ${fmtBytes(res.raw.length)}，帧 CRC 与整体 CRC32 全部通过（${res.path==='webcodecs'?'VideoDecoder 精确逐帧':'播放器逐帧定位'}）。`;
+      log(decLogEl,'✅ 解码成功，可下载。');
+      $('#decBar').style.width='100%';
+    }else if(!res.meta){
+      info.className='note err';info.textContent='❌ '+res.reason;log(decLogEl,'❌ '+res.reason);
+    }else{
+      info.className='note warn';
+      info.textContent=`⚠ 不完整：缺失 ${res.missing.length} 帧（${res.missing.slice(0,16).join(', ')}${res.missing.length>16?' …':''}）。建议用更高容错/码率/帧重复重新编码原文件。`;
+      const url=URL.createObjectURL(new Blob([res.payload],{type:'application/octet-stream'}));
+      const dl=$('#decDlPart');dl.href=url;dl.download=res.meta.name+'.partial.bin';dl.classList.remove('hidden');
+      log(decLogEl,`⚠ 缺失 ${res.missing.length} 帧，CRC ${res.crcOk?'通过':'不匹配'}。`);
+    }
+  }catch(e){
+    if(String(e.message||e)==='cancel')log(decLogEl,'已取消。');
+    else log(decLogEl,'❌ 失败：'+(e.message||e));
+  }finally{
+    decRunning=false;$('#decStart').disabled=!decFile;$('#decCancel').classList.add('hidden');
+  }
+}
+
+/* ================= 预估 / 刷新 ================= */
+let refreshTok=0;
+async function refresh(){
+  const tok=++refreshTok,p=getParams();
+  $('#vRes').textContent=p.h+'p';$('#vFps').textContent=p.fps+' fps';$('#vEcc').textContent=Math.round(p.ecc.f*100)+'%';
+  $('#vBs').textContent=p.mode.rgb?'1 px':p.bs+' px';$('#vRep').textContent=p.rep+'×';$('#vKf').textContent=p.kf===1?'每帧':p.kf+' 帧';$('#vBr').textContent=p.mb+' Mbps';
+  $('#bs').disabled=p.mode.rgb;$('#br').disabled=$('#autoBr').checked;
+  if($('#autoBr').checked)$('#br').value=p.mb;
+  $('#rgbWarn').classList.toggle('hidden',!p.mode.rgb);
+  if(!hasCS){$('#comp').checked=false;$('#comp').disabled=true;}
+  let L;try{L=layout(p.w,p.h,p.bs,p.mode.b,p.mode.rgb,p.r);}catch(e){$('#stNote').textContent='⚠ '+e.message;$('#stNote').className='note err';return;}
+  $('#stCap').textContent=fmtBytes(L.cbf);
+  $('#encStart').disabled=!encFile||encRunning;
+  if(!encFile){['stOrig','stComp','stFrames','stDur','stEst'].forEach(id=>$('#'+id).textContent='—');return;}
+  $('#stOrig').textContent=fmtBytes(encFile.size);$('#stComp').textContent='压缩中…';
+  const pc=await ensurePayload();if(tok!==refreshTok)return;
+  const N=Math.ceil(pc.payload.length/L.cbf),frames=3+N*p.rep,dur=frames/p.fps,est=p.bitrate/8*dur;
+  $('#stComp').textContent=fmtBytes(pc.payload.length)+(pc.flag==='dr'?`（${(pc.payload.length/Math.max(1,encFile.size)*100).toFixed(1)}%）`:'（未压缩）');
+  $('#stFrames').textContent=N+' 帧';$('#stDur').textContent=fmtDur(dur);$('#stEst').textContent='≈ '+fmtBytes(est);
+  const note=$('#stNote');
+  if(est<encFile.size){note.className='note ok';note.textContent=`✅ 预计视频约为原文件的 ${(est/encFile.size*100).toFixed(1)}%——压缩收益大于编码开销，可以更小。`;}
+  else{note.className='note warn';note.textContent=`⚠ 预计视频约为原文件的 ${(est/encFile.size*100).toFixed(0)}%。不可压缩数据在信息论上不可能编码成更小的视频；可在信道体检仍“可靠”的前提下提高密度、降低码率/容错。`;}
+}
+
+/* ================= UI 绑定 ================= */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['enc','dec','about'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.t));
+  const solo=b.dataset.t!=='enc';$('#main').classList.toggle('solo',solo);$('#rail').classList.toggle('hidden',solo);
+});
+function bindDrop(dz,inp,onFile){const z=$(dz),i=$(inp);z.onclick=()=>i.click();z.ondragover=e=>{e.preventDefault();z.classList.add('over');};z.ondragleave=()=>z.classList.remove('over');z.ondrop=e=>{e.preventDefault();z.classList.remove('over');if(e.dataTransfer.files[0])onFile(e.dataTransfer.files[0]);};i.onchange=()=>{if(i.files[0])onFile(i.files[0]);};}
+bindDrop('#encDrop','#encFile',f=>{encFile=f;encRaw=null;payloadCache=null;$('#encFileName').textContent=f.name+' · '+fmtBytes(f.size);log(encLogEl,'已选择文件：'+f.name);refresh();scheduleProbe();});
+bindDrop('#decDrop','#decFile',f=>{decFile=f;$('#decFileName').textContent=f.name+' · '+fmtBytes(f.size);$('#decStart').disabled=false;log(decLogEl,'已选择视频：'+f.name);});
+['#res','#fps','#ecc','#mode','#bs','#rep','#kf','#brMode','#br','#autoBr','#comp','#verify'].forEach(s=>$(s).addEventListener('change',()=>{
+  if(s==='#mode'&&$('#mode').value==='rgb')$('#rep').value='2';
+  refresh();scheduleProbe();
+}));
+const DEFAULTS={res:'1920x1080',fps:'30',mode:'g16',ecc:'mid',bs:'8',rep:'1',kf:'15',brMode:'constant',autoBr:true,comp:true,verify:true};
+function applyVals(v){for(const k in v){const el=$('#'+k);if(!el)continue;if(el.type==='checkbox')el.checked=v[k];else el.value=v[k];}}
+document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
+  const m=b.dataset.preset;
+  if(m==='safe')applyVals({mode:'g4',ecc:'high',rep:'2',kf:'15',bs:'8',autoBr:true});
+  if(m==='bal')applyVals({mode:'g16',ecc:'mid',rep:'1',kf:'15',bs:'8',autoBr:true});
+  if(m==='dense')applyVals({mode:'g16',ecc:'low',rep:'1',kf:'30',bs:'4',autoBr:true});
+  refresh();scheduleProbe();
+});
+$('#resetBtn').onclick=()=>{applyVals(DEFAULTS);$('#br').value=12;refresh();scheduleProbe();};
+$('#probeBtn').onclick=runProbe;
+$('#encStart').onclick=startEncode;
+$('#encCancel').onclick=()=>{if(encCtl)encCtl.cancelled=true;};
+$('#hardenBtn').onclick=()=>{
+  const order=['low','mid','high','max'],cur=$('#ecc').value,i=order.indexOf(cur);
+  $('#ecc').value=order[Math.min(3,i+1)];
+  $('#rep').value=String(Math.max(2,+$('#rep').value));
+  $('#autoBr').checked=false;$('#br').value=Math.min(150,Math.round(getParams().mb*1.6*2)/2);
+  if($('#mode').value==='rgb')$('#mode').value='g16';
+  refresh();log(encLogEl,'已加固参数：容错↑ 码率×1.6 重复≥2，重新编码…');startEncode();
+};
+$('#decStart').onclick=startDecode;
+$('#decCancel').onclick=()=>{if(decCtl)decCtl.cancelled=true;};
+
+/* ================= 自检 ================= */
+(function selfTest(){
+  let ok=crc32(te.encode('123456789'))===0xCBF43926;
+  for(const r of [26,64,102,153]){
+    const k=255-r,msg=new Uint8Array(k);for(let i=0;i<k;i++)msg[i]=(Math.random()*256)|0;
+    const par=rsEncode(msg,r),cw=concatBytes([msg,par]);
+    const pos=new Set();while(pos.size<r)pos.add((Math.random()*255)|0);
+    const eras=[...pos];for(const p of eras)cw[p]^=1+((Math.random()*255)|0);
+    const fixed=rsCorrect(cw,r,eras,null);
+    let same=true;for(let i=0;i<255;i++)if(cw[i]!==(i<k?msg[i]:par[i-k]))same=false;
+    ok=ok&&fixed&&same;
+  }
+  try{
+    const fake=[{bytes:new Uint8Array([1,2,3,4]),key:true,timestamp:0},{bytes:new Uint8Array([5,6]),key:false,timestamp:33333}];
+    const mp4=muxMP4(fake,'vp09.00.51.08',null,1280,720,30);
+    const dm=demuxMP4(mp4.buffer);
+    ok=ok&&dm&&dm.count===2&&dm.codec==='vp09.00.51.08'&&dm.samples[1].offset===dm.samples[0].offset+4;
+  }catch(e){ok=false;}
+  const st=$('#selftest');st.textContent=ok?'✅ CRC/RS/封装 自检通过':'❌ 自检失败';st.className='chip '+(ok?'ok':'warn');
+  const ec=$('#engineChip');
+  if(hasVE&&hasVD){ec.textContent='⚡ WebCodecs 确定性引擎';ec.className='chip ok';}
+  else if(hasVE||hasVD){ec.textContent='◐ 部分 WebCodecs';ec.className='chip warn';}
+  else{ec.textContent='🐢 兼容录制模式';ec.className='chip warn';}
+  if(!ok)console.error('FRAMEVAULT 自检失败');
+})();
+refresh();scheduleProbe();
+})();
+</script>
+</body>
+</html>
